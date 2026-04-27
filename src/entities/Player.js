@@ -12,6 +12,7 @@ class Player {
         this.container.addChild(this.cannon);
 
         this.accuracyBar = new AccuracyBar();
+        this.setupCursorDot();
         this.container.addChild(this.accuracyBar);
 
         this.setupUI();
@@ -84,6 +85,15 @@ class Player {
         this.renderCoins();
     }
 
+    setupCursorDot() {
+        this.cursorDot = new PIXI.Graphics();
+        this.cursorDot.circle(0, 0, 8);
+        this.cursorDot.fill({ color: 0xFFFFFF });
+        this.cursorDot.stroke({ color: 0x000000, width: 2 });
+        Game.app.stage.addChild(this.cursorDot);
+        this.cursorDot.visible = true;
+    }
+
     getDisplayedCoins() {
         if (!window.GgemuBridge || !GgemuBridge.isBagEnabled()) {
             return this.localCoins;
@@ -111,6 +121,7 @@ class Player {
         this.accuracyBar.showFeedback(accuracyInfo);
         const bullet = new Bullet(this.cannon.power, rotation);
         bullet.accuracyBonus = accuracyInfo.bonus;
+        bullet.accuracyLabel = accuracyInfo.label;
         bullet.x = this.cannon.x;
         bullet.y = this.cannon.y;
         this.bullets.push(bullet);
@@ -176,8 +187,28 @@ class Player {
     }
 
     updateBullets(delta) {
-        if (this.accuracyBar) {
-            this.accuracyBar.update(delta);
+        // 更新准度条
+        this.accuracyBar.update(delta);
+
+        // 更新鼠标跟随小圆点和炮台转向
+        const mousePos = Game.app.renderer.events.pointer.global;
+        if (mousePos) {
+            this.cursorDot.position.set(mousePos.x + 30, mousePos.y + 30);
+
+            // 更新炮台旋转
+            const dx = mousePos.x - this.cannon.x;
+            const dy = mousePos.y - this.cannon.y;
+            this.cannon.rotation = Math.atan2(dy, dx) + Math.PI / 2;
+
+            // 根据当前准度实时更新颜色
+            const accuracy = this.accuracyBar.getAccuracy();
+            let color = 0xFF0000; // 默认红色 (Oh~No)
+            if (accuracy.label === "Great") color = 0xFFFF00; // 黄色
+            else if (accuracy.label === "Good") color = 0x00FF00; // 绿色
+
+            this.cursorDot.clear();
+            this.cursorDot.circle(0, 0, 8);
+            this.cursorDot.fill({ color: color });
         }
 
         for (let i = this.bullets.length - 1; i >= 0; i--) {

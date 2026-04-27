@@ -43,7 +43,7 @@ class AccuracyBar extends PIXI.Container {
 
     getGoodWidth() {
         // Good 区域：1号炮（0.5），7号炮（0.15）
-        const maxWidth = 0.5;
+        const maxWidth = 0.75;
         const minWidth = 0.15;
         const ratio = (this.power - 1) / 6;
         return maxWidth - (maxWidth - minWidth) * ratio;
@@ -60,14 +60,14 @@ class AccuracyBar extends PIXI.Container {
         const yw = this.barWidth * goodWidthRatio;
         this.yellowArea.clear();
         this.yellowArea.rect(-yw / 2, -this.barHeight / 2, yw, this.barHeight, 2);
-        this.yellowArea.fill({ color: 0xFFD700, alpha: .6 }); // Yellow
+        this.yellowArea.fill({ color: 0x00ff00, alpha: 1 }); // Yellow
 
         // Green target area (Great)
         const greenWidthRatio = this.getGreenWidth();
         const gw = this.barWidth * greenWidthRatio;
         this.greenArea.clear();
         this.greenArea.rect(-gw / 2, -this.barHeight / 2, gw, this.barHeight, 2);
-        this.greenArea.fill({ color: 0x00FF00, alpha: .6 }); // Green
+        this.greenArea.fill({ color: 0xFFFF00, alpha: 1 }); // Green
 
         // Render indicator based on current pos
         this.renderIndicator();
@@ -110,9 +110,9 @@ class AccuracyBar extends PIXI.Container {
         let color = "#ff0000";
 
         if (label === "Great") {
-            color = "#00ff00";
+            color = "#ffff00";
         } else if (label === "Good") {
-            color = "#ffd700";
+            color = "#00ff00";
         }
 
         const text = new PIXI.Text({

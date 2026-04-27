@@ -101,11 +101,38 @@ class Bullet extends PIXI.Sprite {
             // 根据鱼价值比例增加累积值
             f.increaseAccumulation();
 
-            if (CaptureRules.checkCapture(this.power, f, this.accuracyBonus)) {
+            // 核心概率判定
+            const prob = CaptureRules.getSingleCaptureChance({
+                bulletPower: this.power,
+                fishCoin: f.type.coin,
+                accuracyBonusFactor: this.accuracyBonus,
+                captureAccumulationFactor: f.captureAccumulationFactor || 0
+            });
+
+            // 1. 随机判定 (原有逻辑)
+            const isCaught = CaptureRules.naturalRandom() < prob;
+
+            if (isCaught) {
+                // 概率抓中，扣除剩余全部血量以显化爽感
+                const remainingHp = f.hp;
+                f.takeDamage(remainingHp, this.accuracyLabel);
+                
                 f.capture();
                 Game.player.addCoin(f.type.coin);
-                const coinText = new CoinText(f.type.coin, f.x, f.y);
+                const coinText = new CoinText(f.type.coin, Game.width / 2 - 340, Game.height - 40);
                 Game.effectContainer.addChild(coinText);
+            } else {
+                // 2. 血条判定 (Pity 系统)
+                // 伤害 = 鱼价值 * 当前概率
+                const damage = f.maxHp * prob;
+                f.takeDamage(damage, this.accuracyLabel);
+
+                if (f.hp <= 0) {
+                    f.capture();
+                    Game.player.addCoin(f.type.coin);
+                    const coinText = new CoinText(f.type.coin, Game.width / 2 - 340, Game.height - 40);
+                    Game.effectContainer.addChild(coinText);
+                }
             }
         }
     }
@@ -172,3 +199,38 @@ class CoinText extends PIXI.Text {
         }
     }
 }
+
+class DamageText extends PIXI.Text {
+    constructor(amount, x, y, accuracyLabel) {
+        let color = "#ff0000";
+        if (accuracyLabel === "Great") color = "#ffff00";
+        else if (accuracyLabel === "Good") color = "#00ff00";
+
+        super({
+            text: `-${amount.toFixed(2)}`,
+            style: {
+                fill: color,
+                fontSize: 24, // 变大一点
+                fontWeight: 'bold',
+                stroke: { color: 0x000000, width: 3 }
+            }
+        });
+        this.anchor.set(0.5);
+        this.x = x;
+        this.y = y;
+        this.timer = 0;
+        this.isDead = false;
+    }
+
+    update(delta) {
+        this.timer += delta;
+        this.y -= 1.0 * delta;
+        this.alpha = Math.max(0, 1 - this.timer / 30);
+
+        if (this.timer > 30) {
+            this.isDead = true;
+        }
+    }
+}
+
+globalThis.DamageText = DamageText;

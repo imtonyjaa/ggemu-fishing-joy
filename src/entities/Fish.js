@@ -31,6 +31,13 @@ class Fish extends PIXI.Container {
         // 捕获累积因子 (相对于基础概率的比例)，初始为 0.00
         this.captureAccumulationFactor = 0.0;
 
+        // 血条系统 (Pity 系统)
+        this.maxHp = this.type.coin;
+        this.hp = this.maxHp;
+        this.hpBarVisibleTimer = 0;
+
+        this.setupHpBar();
+
         const swimFrames = [];
         for (let i = 0; i < this.type.frames; i++) {
             swimFrames.push(ResourceManager.getTexture(this.type.id, [0, i * this.type.height, this.type.width, this.type.height]));
@@ -41,9 +48,45 @@ class Fish extends PIXI.Container {
         this.sprite.play();
         this.sprite.anchor.set(this.type.regX / this.type.width, this.type.regY / this.type.height);
 
+        this.setupHpBar();
+
         this.addChild(this.sprite);
 
         this.initPosition(spawnOptions);
+    }
+
+    setupHpBar() {
+        this.hpBarContainer = new PIXI.Container();
+        this.hpBarContainer.visible = false;
+        if (Game.effectContainer) {
+            Game.effectContainer.addChild(this.hpBarContainer);
+        }
+
+        const barWidth = 60; // 固定宽度
+        const barHeight = 4;
+
+        const bg = new PIXI.Graphics();
+        bg.rect(-barWidth / 2, 0, barWidth, barHeight);
+        bg.fill({ color: 0x000000, alpha: 0.5 });
+        this.hpBarContainer.addChild(bg);
+
+        this.hpFill = new PIXI.Graphics();
+        this.hpBarContainer.addChild(this.hpFill);
+        
+        this.updateHpBarVisual();
+
+        // 将血条置于鱼的上方
+        this.hpBarContainer.y = -35;
+    }
+
+    updateHpBarVisual() {
+        const barWidth = 60;
+        const barHeight = 4;
+        const fillWidth = (this.hp / this.maxHp) * barWidth;
+
+        this.hpFill.clear();
+        this.hpFill.rect(-barWidth / 2, 0, fillWidth, barHeight);
+        this.hpFill.fill({ color: 0xFF0000 }); // 红色血条
     }
 
     initPosition(spawnOptions = {}) {
@@ -93,6 +136,21 @@ class Fish extends PIXI.Container {
             this.sprite.rotation = isHeadingLeft ? -this.type.rotationOffset : this.type.rotationOffset;
         }
 
+        if (this.hpBarVisibleTimer > 0) {
+            this.hpBarVisibleTimer -= delta;
+            this.hpBarContainer.alpha = Math.min(1, this.hpBarVisibleTimer / 20);
+            
+            // 保持血条在鱼的上方，且不受鱼自身旋转和缩放影响
+            this.hpBarContainer.x = this.x;
+            this.hpBarContainer.y = this.y - 35;
+            this.hpBarContainer.rotation = 0;
+            this.hpBarContainer.scale.set(1);
+
+            if (this.hpBarVisibleTimer <= 0) {
+                this.hpBarContainer.visible = false;
+            }
+        }
+
         const leftBound = -200;
         const rightBound = Game.width + 200;
         const topBound = -200;
@@ -116,9 +174,35 @@ class Fish extends PIXI.Container {
         this.captureAccumulationFactor = Math.min(0.3, this.captureAccumulationFactor + 0.005);
     }
 
+    takeDamage(amount, accuracyLabel) {
+        this.hp = Math.max(0, this.hp - amount);
+        this.updateHpBarVisual();
+        
+        // 显示飘血文字
+        if (amount > 0.01) {
+            const damageText = new DamageText(amount, this.x, this.y - 20, accuracyLabel);
+            Game.effectContainer.addChild(damageText);
+        }
+
+        // 只有大鱼（价值 >= 10）显示血条，避免杂乱
+        if (this.type.coin >= 10) {
+            this.hpBarContainer.visible = true;
+            this.hpBarContainer.alpha = 1;
+            this.hpBarVisibleTimer = 90; // 显示约 1.5 秒
+        }
+    }
+
     capture() {
         if (this.captured) return;
         this.captured = true;
+
+        // 捕获时立刻隐藏并移除血条
+        if (this.hpBarContainer) {
+            this.hpBarContainer.visible = false;
+            if (this.hpBarContainer.parent) {
+                this.hpBarContainer.parent.removeChild(this.hpBarContainer);
+            }
+        }
 
         const captureFrames = [];
         const captureCount = this.type.captureFrames || 4;
@@ -137,5 +221,16 @@ class Fish extends PIXI.Container {
         } else {
             this.isDead = true;
         }
+    }
+
+    destroy(options) {
+        if (this.hpBarContainer) {
+            if (this.hpBarContainer.parent) {
+                this.hpBarContainer.parent.removeChild(this.hpBarContainer);
+            }
+            this.hpBarContainer.destroy();
+            this.hpBarContainer = null;
+        }
+        super.destroy(options);
     }
 }
