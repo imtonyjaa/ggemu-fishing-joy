@@ -21,7 +21,7 @@ class Bullet extends PIXI.Sprite {
         this.rotation = rotation;
         this.speed = 10;
         this.isDead = false;
-        this.accuracyMult = 1.0;
+        this.accuracyBonus = 0;
     }
 
     update(delta) {
@@ -55,13 +55,8 @@ class Bullet extends PIXI.Sprite {
     }
 
     getCaptureChance(fish) {
-        const captureRules = globalThis.CaptureRules;
-
-        if (!captureRules) {
-            throw new Error('CaptureRules is unavailable.');
-        }
-
-        return captureRules.getFishCaptureChance(this.power, fish?.type, this.accuracyMult);
+        // 此方法已废弃，直接使用 CaptureRules.checkCapture
+        return 0;
     }
 
     getWebRadius() {
@@ -103,7 +98,10 @@ class Bullet extends PIXI.Sprite {
         if (affectedFishes.length === 0) return;
 
         for (let f of affectedFishes) {
-            if (Math.random() < this.getCaptureChance(f)) {
+            // 根据鱼价值比例增加累积值
+            f.increaseAccumulation();
+
+            if (CaptureRules.checkCapture(this.power, f, this.accuracyBonus)) {
                 f.capture();
                 Game.player.addCoin(f.type.coin);
                 const coinText = new CoinText(f.type.coin, f.x, f.y);

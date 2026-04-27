@@ -32,9 +32,9 @@ class AccuracyBar extends PIXI.Container {
     }
 
     getGreenWidth() {
-        // 1号炮绿色区域宽（0.8），7号炮绿色区域窄（0.15）
-        const maxWidth = 0.8;
-        const minWidth = 0.15;
+        // 1号炮绿色区域宽（0.45），7号炮绿色区域窄（0.12）
+        const maxWidth = 0.45;
+        const minWidth = 0.12;
         const ratio = (this.power - 1) / 6;
         return maxWidth - (maxWidth - minWidth) * ratio;
     }
@@ -88,15 +88,13 @@ class AccuracyBar extends PIXI.Container {
         }
     }
 
-    showFeedback(accuracy) {
-        let label = "Oh~No";
+    showFeedback(accuracyInfo) {
+        const { label, bonus } = accuracyInfo;
         let color = "#ff0000";
 
-        if (accuracy >= 1.0) {
-            label = "Great";
+        if (label === "Great") {
             color = "#00ff00";
-        } else if (accuracy >= 0.6) {
-            label = "Good";
+        } else if (label === "Good") {
             color = "#ffd700";
         }
 
@@ -122,15 +120,14 @@ class AccuracyBar extends PIXI.Container {
         const dist = Math.abs(this.indicatorPos - center);
 
         if (dist <= halfGreen) {
-            // Great! 给予 20% 的额外捕获概率加成
-            return 1.2;
+            // Great! +25% 基础概率
+            return { label: "Great", bonus: 0.25 };
+        } else if (dist <= halfGreen + 0.15) {
+            // Good! +10% 基础概率
+            return { label: "Good", bonus: 0.1 };
         } else {
-            // 距离绿色边缘越远，衰减越大
-            const overflow = dist - halfGreen;
-            const maxOverflow = 0.5 - halfGreen;
-            // 线性衰减到 0.2
-            const decay = Math.max(0.2, 1.0 - (overflow / maxOverflow) * 0.8);
-            return decay;
+            // Oh~No! -50% 基础概率
+            return { label: "Oh~No", bonus: -0.5 };
         }
     }
 }

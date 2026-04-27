@@ -107,10 +107,10 @@ class Player {
 
         this.cannon.fire(rotation);
 
-        const accuracy = this.accuracyBar.getAccuracy();
-        this.accuracyBar.showFeedback(accuracy);
+        const accuracyInfo = this.accuracyBar.getAccuracy();
+        this.accuracyBar.showFeedback(accuracyInfo);
         const bullet = new Bullet(this.cannon.power, rotation);
-        bullet.accuracyMult = accuracy;
+        bullet.accuracyBonus = accuracyInfo.bonus;
         bullet.x = this.cannon.x;
         bullet.y = this.cannon.y;
         this.bullets.push(bullet);

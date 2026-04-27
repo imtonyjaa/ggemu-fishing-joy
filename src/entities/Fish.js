@@ -28,6 +28,9 @@ class Fish extends PIXI.Container {
             ? spawnOptions.animationSpeedMultiplier
             : 1;
 
+        // 捕获累积因子 (相对于基础概率的比例)，初始为 0.00
+        this.captureAccumulationFactor = 0.0;
+
         const swimFrames = [];
         for (let i = 0; i < this.type.frames; i++) {
             swimFrames.push(ResourceManager.getTexture(this.type.id, [0, i * this.type.height, this.type.width, this.type.height]));
@@ -106,6 +109,11 @@ class Fish extends PIXI.Container {
                 this.isDead = true;
             }
         }
+    }
+
+    increaseAccumulation() {
+        // 每次命中增加 0.5% 的基础概率加成，上限为 30%
+        this.captureAccumulationFactor = Math.min(0.3, this.captureAccumulationFactor + 0.005);
     }
 
     capture() {

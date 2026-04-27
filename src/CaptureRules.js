@@ -1,41 +1,81 @@
 class CaptureRules {
     static highPowerCap = 0.9;
-    static rarityWeight = 20; // 稀有度权重分母
+    
+    // 预生成的随机数表，用于“自然随机”分布
+    static _randomTable = [];
+    static _randomIndex = 0;
+    static _tableSize = 1000;
 
-    static getSingleCaptureChance({ bulletPower, fishCoin, fishRarity, accuracyMult = 1.0 }) {
-        const normalizedBulletPower = Number(bulletPower || 0);
-        const normalizedFishCoin = Number(fishCoin || 0);
-        const normalizedFishRarity = Number(fishRarity || 1);
+    static init() {
+        this._randomTable = Array.from({ length: this._tableSize }, () => Math.random());
+        this.shuffleTable();
+    }
 
-        if (normalizedBulletPower <= 0 || normalizedFishCoin <= 0) {
-            return 0;
+    static shuffleTable() {
+        for (let i = this._randomTable.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this._randomTable[i], this._randomTable[j]] = [this._randomTable[j], this._randomTable[i]];
+        }
+    }
+
+    static naturalRandom() {
+        if (this._randomTable.length === 0) this.init();
+        const value = this._randomTable[this._randomIndex];
+        this._randomIndex = (this._randomIndex + 1) % this._tableSize;
+        if (this._randomIndex === 0) this.shuffleTable();
+        return value;
+    }
+
+    static getSingleCaptureChance({ bulletPower, fishCoin, accuracyBonusFactor = 0, captureAccumulationFactor = 0 }) {
+        const p = Number(bulletPower || 0);
+        const c = Number(fishCoin || 1);
+
+        if (p <= 0 || c <= 0) return 0;
+
+        // 1. 计算动态 RTP 系数 (小鱼爽快 110%，大鱼平稳 60%)
+        let rtpMultiplier = 1.1; 
+        if (c > 5) {
+            // 在 5-50 价值之间从 1.1 降至 0.6
+            const t = Math.min(1, (c - 5) / 45);
+            rtpMultiplier = 1.1 - t * (1.1 - 0.6);
+        } else if (c > 50) {
+            rtpMultiplier = 0.6;
         }
 
-        // 基础经济概率 (炮等级/鱼价值)
-        const economyChance = normalizedBulletPower / normalizedFishCoin;
-        // 稀有度衰减项 (稀有度/20)
-        const rarityDecay = normalizedFishRarity / CaptureRules.rarityWeight;
+        // 2. 计算基础概率 (目标返还率控制)
+        const baseProb = (p / c) * rtpMultiplier;
         
-        // 公式：经济概率 - 稀有度衰减，并附加 1% 的保底概率
-        let captureChance = Math.max(0.01, economyChance - rarityDecay);
+        // 3. 最终概率 = 基础概率 * (1 + 准度加成因子 + 累积因子)
+        // 所有的加成现在都是相对于基础概率的比例，彻底解决大鱼无脑刷钱的问题
+        let captureChance = baseProb * (1 + accuracyBonusFactor + captureAccumulationFactor);
 
-        // 应用全局最高命中率上限 (90%)
-        captureChance = Math.min(captureChance, CaptureRules.highPowerCap);
+        // 限制范围在 [0, highPowerCap]
+        captureChance = Math.max(0, Math.min(captureChance, CaptureRules.highPowerCap));
 
-        // 应用准度衰减
-        captureChance *= accuracyMult;
+        return captureChance;
+    }
 
-        return Math.max(0, captureChance);
+    static checkCapture(bulletPower, fish, accuracyBonusFactor = 0) {
+        const prob = this.getSingleCaptureChance({
+            bulletPower,
+            fishCoin: fish.type.coin,
+            accuracyBonusFactor,
+            captureAccumulationFactor: fish.captureAccumulationFactor || 0
+        });
+
+        return this.naturalRandom() < prob;
     }
 
     static getFishCaptureChance(bulletPower, fishType = {}, accuracyMult = 1.0) {
-        return CaptureRules.getSingleCaptureChance({
+        // 兼容旧调用
+        return this.getSingleCaptureChance({
             bulletPower,
             fishCoin: fishType.coin,
-            fishRarity: fishType.rarity,
-            accuracyMult
+            accuracyBonusFactor: (accuracyMult - 1),
+            captureAccumulationFactor: 0
         });
     }
 }
 
+CaptureRules.init();
 globalThis.CaptureRules = CaptureRules;
