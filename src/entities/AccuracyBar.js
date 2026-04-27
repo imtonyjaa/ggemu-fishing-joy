@@ -16,10 +16,12 @@ class AccuracyBar extends PIXI.Container {
 
     setupGraphics() {
         this.bg = new PIXI.Graphics();
+        this.yellowArea = new PIXI.Graphics();
         this.greenArea = new PIXI.Graphics();
         this.indicator = new PIXI.Graphics();
 
         this.addChild(this.bg);
+        this.addChild(this.yellowArea);
         this.addChild(this.greenArea);
         this.addChild(this.indicator);
 
@@ -32,9 +34,17 @@ class AccuracyBar extends PIXI.Container {
     }
 
     getGreenWidth() {
-        // 1号炮绿色区域宽（0.45），7号炮绿色区域窄（0.12）
-        const maxWidth = 0.45;
-        const minWidth = 0.12;
+        // Great 区域：1号炮（0.2），7号炮（0.06）
+        const maxWidth = 0.2;
+        const minWidth = 0.06;
+        const ratio = (this.power - 1) / 6;
+        return maxWidth - (maxWidth - minWidth) * ratio;
+    }
+
+    getGoodWidth() {
+        // Good 区域：1号炮（0.5），7号炮（0.15）
+        const maxWidth = 0.5;
+        const minWidth = 0.15;
         const ratio = (this.power - 1) / 6;
         return maxWidth - (maxWidth - minWidth) * ratio;
     }
@@ -45,12 +55,19 @@ class AccuracyBar extends PIXI.Container {
         this.bg.roundRect(-this.barWidth / 2, -this.barHeight / 2, this.barWidth, this.barHeight, 4);
         this.bg.fill({ color: 0xFFD700, alpha: 0 });
 
-        // Green target area
+        // Yellow target area (Good)
+        const goodWidthRatio = this.getGoodWidth();
+        const yw = this.barWidth * goodWidthRatio;
+        this.yellowArea.clear();
+        this.yellowArea.rect(-yw / 2, -this.barHeight / 2, yw, this.barHeight, 2);
+        this.yellowArea.fill({ color: 0xFFD700, alpha: .6 }); // Yellow
+
+        // Green target area (Great)
         const greenWidthRatio = this.getGreenWidth();
         const gw = this.barWidth * greenWidthRatio;
         this.greenArea.clear();
         this.greenArea.rect(-gw / 2, -this.barHeight / 2, gw, this.barHeight, 2);
-        this.greenArea.fill({ color: 0x00FF00, alpha: 1 }); // Green
+        this.greenArea.fill({ color: 0x00FF00, alpha: .6 }); // Green
 
         // Render indicator based on current pos
         this.renderIndicator();
@@ -114,15 +131,16 @@ class AccuracyBar extends PIXI.Container {
     }
 
     getAccuracy() {
-        const greenWidth = this.getGreenWidth();
-        const halfGreen = greenWidth / 2;
         const center = 0.5;
         const dist = Math.abs(this.indicatorPos - center);
+
+        const halfGreen = this.getGreenWidth() / 2;
+        const halfGood = this.getGoodWidth() / 2;
 
         if (dist <= halfGreen) {
             // Great! +25% 基础概率
             return { label: "Great", bonus: 0.25 };
-        } else if (dist <= halfGreen + 0.15) {
+        } else if (dist <= halfGood) {
             // Good! +10% 基础概率
             return { label: "Good", bonus: 0.1 };
         } else {
