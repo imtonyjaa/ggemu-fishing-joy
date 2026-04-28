@@ -79,6 +79,15 @@ const AudioManager = {
         }).connect(this.outputNode);
         this.bubbleSynth.volume.value = -25;
 
+        // 为暴击和强力击打准备的合成器
+        this.powerSynth = new Tone.PolySynth(Tone.FMSynth, {
+            oscillator: { type: "square" },
+            envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1.5 },
+            modulationIndex: 5,
+            harmonicity: 1.5
+        }).connect(this.outputNode);
+        this.powerSynth.volume.value = -12;
+
         this.initialized = true;
     },
 
@@ -136,6 +145,24 @@ const AudioManager = {
         if (t > now + 0.2) return;
         this.webSynth.triggerAttackRelease("16n", t);
         this._lastWebTime = t + 0.05;
+    },
+
+    playCritical: function() {
+        if(!this.initialized) this.init();
+        var now = Tone.now();
+        this.powerSynth.triggerAttackRelease(["C5", "E5"], "8n", now);
+    },
+
+    playMegaHit: function() {
+        if(!this.initialized) this.init();
+        var now = Tone.now();
+        this.powerSynth.triggerAttackRelease(["C4", "E4", "G4", "B4"], "4n", now);
+    },
+
+    playOneShot: function() {
+        if(!this.initialized) this.init();
+        var now = Tone.now();
+        this.powerSynth.triggerAttackRelease(["A2", "A3", "C4", "E4", "A4"], "1m", now);
     },
 
     startAmbient: function() {

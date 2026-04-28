@@ -65,7 +65,6 @@ class Bullet extends PIXI.Sprite {
 
     hit(fish) {
         this.isDead = true;
-        AudioManager.playWeb();
 
         const web = new Web(this.power, this.x, this.y);
         Game.effectContainer.addChild(web);
@@ -97,6 +96,8 @@ class Bullet extends PIXI.Sprite {
 
         if (affectedFishes.length === 0) return;
 
+        let highestHitLevel = 0;
+
         for (let f of affectedFishes) {
             // 每次命中增加累积值
             f.increaseAccumulation();
@@ -109,6 +110,7 @@ class Bullet extends PIXI.Sprite {
 
             let damage = this.power * accMult;
             let isMegaCritical = false;
+            let isOneShot = false;
 
             // 2. 大暴击 (Mega Critical) 判定
             // 只有 Great 和 Good 有资格触发
@@ -130,7 +132,7 @@ class Bullet extends PIXI.Sprite {
                     if (Math.random() < 0.05) {
                         damage = f.hp;
                         // 标记为特型暴击，用于显示不同的文字
-                        this.isOneShot = true;
+                        isOneShot = true;
                     } else {
                         // 标准大暴击：确保至少是普通伤害的 10 倍，或者是总血量的 40%~80%
                         const baseMegaDamage = f.maxHp * (0.4 + Math.random() * 0.4);
@@ -140,7 +142,13 @@ class Bullet extends PIXI.Sprite {
             }
 
             // 执行伤害 (如果是 OneShot，显示特殊文字)
-            f.takeDamage(damage, this.accuracyLabel, isMegaCritical, this.isOneShot);
+            f.takeDamage(damage, this.accuracyLabel, isMegaCritical, isOneShot);
+
+            let hitLevel = 0;
+            if (this.accuracyLabel === "Great") hitLevel = 1;
+            if (isMegaCritical) hitLevel = 2;
+            if (isOneShot) hitLevel = 3;
+            if (hitLevel > highestHitLevel) highestHitLevel = hitLevel;
 
             // 3. 检查死亡
             if (f.hp <= 0) {
@@ -149,6 +157,16 @@ class Bullet extends PIXI.Sprite {
                 const coinText = new CoinText(f.type.coin, Game.width / 2 - 340, Game.height - 40);
                 Game.effectContainer.addChild(coinText);
             }
+        }
+
+        if (highestHitLevel === 3) {
+            AudioManager.playOneShot();
+        } else if (highestHitLevel === 2) {
+            AudioManager.playMegaHit();
+        } else if (highestHitLevel === 1) {
+            AudioManager.playCritical();
+        } else {
+            AudioManager.playWeb();
         }
     }
 }
