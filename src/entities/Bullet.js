@@ -98,41 +98,56 @@ class Bullet extends PIXI.Sprite {
         if (affectedFishes.length === 0) return;
 
         for (let f of affectedFishes) {
-            // 根据鱼价值比例增加累积值
+            // 每次命中增加累积值
             f.increaseAccumulation();
 
-            // 核心概率判定
-            const prob = CaptureRules.getSingleCaptureChance({
-                bulletPower: this.power,
-                fishCoin: f.type.coin,
-                accuracyBonusFactor: this.accuracyBonus,
-                captureAccumulationFactor: f.captureAccumulationFactor || 0
-            });
+            // 1. 基础伤害计算
+            let accMult = 1.0;
+            if (this.accuracyLabel === "Great") accMult = 2.0;
+            else if (this.accuracyLabel === "Good") accMult = 1.0;
+            else accMult = 0.5;
 
-            // 1. 随机判定 (原有逻辑)
-            const isCaught = CaptureRules.naturalRandom() < prob;
+            let damage = this.power * accMult;
+            let isMegaCritical = false;
 
-            if (isCaught) {
-                // 概率抓中，扣除剩余全部血量以显化爽感
-                const remainingHp = f.hp;
-                f.takeDamage(remainingHp, this.accuracyLabel);
-                
+            // 2. 大暴击 (Mega Critical) 判定
+            // 只有 Great 和 Good 有资格触发
+            if (this.accuracyLabel === "Great" || this.accuracyLabel === "Good") {
+                const prob = CaptureRules.getSingleCaptureChance({
+                    bulletPower: this.power,
+                    fishCoin: f.type.coin,
+                    accuracyBonusFactor: this.accuracyBonus,
+                    captureAccumulationFactor: f.captureAccumulationFactor || 0
+                });
+
+                // 如果是 Good，触发几率大幅衰减
+                const finalProb = (this.accuracyLabel === "Great") ? prob : prob * 0.2;
+
+                if (CaptureRules.naturalRandom() < finalProb) {
+                    isMegaCritical = true;
+                    
+                    // 额外判定：在大暴击中，有 5% 的概率进化为“一击必杀 (ONE SHOT)”
+                    if (Math.random() < 0.05) {
+                        damage = f.hp;
+                        // 标记为特型暴击，用于显示不同的文字
+                        this.isOneShot = true;
+                    } else {
+                        // 标准大暴击：确保至少是普通伤害的 10 倍，或者是总血量的 40%~80%
+                        const baseMegaDamage = f.maxHp * (0.4 + Math.random() * 0.4);
+                        damage = Math.max(damage * 10, baseMegaDamage);
+                    }
+                }
+            }
+
+            // 执行伤害 (如果是 OneShot，显示特殊文字)
+            f.takeDamage(damage, this.accuracyLabel, isMegaCritical, this.isOneShot);
+
+            // 3. 检查死亡
+            if (f.hp <= 0) {
                 f.capture();
                 Game.player.addCoin(f.type.coin);
                 const coinText = new CoinText(f.type.coin, Game.width / 2 - 340, Game.height - 40);
                 Game.effectContainer.addChild(coinText);
-            } else {
-                // 2. 血条判定 (Pity 系统)
-                // 伤害 = 鱼价值 * 当前概率
-                const damage = f.maxHp * prob;
-                f.takeDamage(damage, this.accuracyLabel);
-
-                if (f.hp <= 0) {
-                    f.capture();
-                    Game.player.addCoin(f.type.coin);
-                    const coinText = new CoinText(f.type.coin, Game.width / 2 - 340, Game.height - 40);
-                    Game.effectContainer.addChild(coinText);
-                }
             }
         }
     }
@@ -201,18 +216,41 @@ class CoinText extends PIXI.Text {
 }
 
 class DamageText extends PIXI.Text {
-    constructor(amount, x, y, accuracyLabel) {
+    constructor(amount, x, y, accuracyLabel, isCritical = false, isOneShot = false) {
         let color = "#ff0000";
-        if (accuracyLabel === "Great") color = "#ffff00";
-        else if (accuracyLabel === "Good") color = "#00ff00";
+        let fontSize = 24;
+        let strokeWidth = 3;
+        let textStr = "";
+
+        if (isOneShot) {
+            color = "#FF00FF"; // 亮紫色
+            fontSize = 56; // 超巨型
+            strokeWidth = 8;
+            textStr = `ONE SHOT!!!\n-${amount.toFixed(1)}`;
+        } else if (isCritical) {
+            color = "#FFD700"; // 金色
+            fontSize = 48; // 巨无霸文字
+            strokeWidth = 6;
+            textStr = `MEGA HIT!\n-${amount.toFixed(1)}`;
+        } else if (accuracyLabel === "Great") {
+            color = "#ffff00"; // 黄色 (小暴击)
+            fontSize = 28;
+            textStr = `CRITICAL\n-${amount.toFixed(1)}`;
+        } else if (accuracyLabel === "Good") {
+            color = "#00ff00"; // 绿色
+            textStr = `-${amount.toFixed(1)}`;
+        } else {
+            textStr = `-${amount.toFixed(1)}`;
+        }
 
         super({
-            text: `-${amount.toFixed(2)}`,
+            text: textStr,
             style: {
                 fill: color,
-                fontSize: 24, // 变大一点
+                fontSize: fontSize,
                 fontWeight: 'bold',
-                stroke: { color: 0x000000, width: 3 }
+                stroke: { color: 0x000000, width: strokeWidth },
+                align: 'center'
             }
         });
         this.anchor.set(0.5);

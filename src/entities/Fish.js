@@ -31,8 +31,23 @@ class Fish extends PIXI.Container {
         // 捕获累积因子 (相对于基础概率的比例)，初始为 0.00
         this.captureAccumulationFactor = 0.0;
 
-        // 血条系统 (Pity 系统)
-        this.maxHp = this.type.coin;
+        // 血条系统 (保底系统)
+        // 根据 RTP 系数反算 HP，保证数值平衡 (HP = 价值 / RTP)
+        const rtp = CaptureRules.getRtpMultiplier(this.type.coin);
+        
+        // 动态护甲：小鱼脆皮（保证秒杀爽感），大鱼皮厚（防纯平砍刷钱）
+        let armorMultiplier = 1.0;
+        if (this.type.coin <= 5) {
+            armorMultiplier = 0.9; // 2金币鱼: HP 1.81 * 0.9 = 1.63 < 2.0 (Great 必秒)
+        } else if (this.type.coin > 50) {
+            armorMultiplier = 1.3; // 鲨鱼增加装甲
+        } else {
+            // 中型鱼平滑过渡
+            const t = (this.type.coin - 5) / 45;
+            armorMultiplier = 0.9 + t * (1.3 - 0.9);
+        }
+
+        this.maxHp = (this.type.coin / rtp) * armorMultiplier;
         this.hp = this.maxHp;
         this.hpBarVisibleTimer = 0;
 
@@ -72,7 +87,7 @@ class Fish extends PIXI.Container {
 
         this.hpFill = new PIXI.Graphics();
         this.hpBarContainer.addChild(this.hpFill);
-        
+
         this.updateHpBarVisual();
 
         // 将血条置于鱼的上方
@@ -139,7 +154,7 @@ class Fish extends PIXI.Container {
         if (this.hpBarVisibleTimer > 0) {
             this.hpBarVisibleTimer -= delta;
             this.hpBarContainer.alpha = Math.min(1, this.hpBarVisibleTimer / 20);
-            
+
             // 保持血条在鱼的上方，且不受鱼自身旋转和缩放影响
             this.hpBarContainer.x = this.x;
             this.hpBarContainer.y = this.y - 35;
@@ -174,13 +189,13 @@ class Fish extends PIXI.Container {
         this.captureAccumulationFactor = Math.min(0.3, this.captureAccumulationFactor + 0.005);
     }
 
-    takeDamage(amount, accuracyLabel) {
+    takeDamage(amount, accuracyLabel, isCritical = false, isOneShot = false) {
         this.hp = Math.max(0, this.hp - amount);
         this.updateHpBarVisual();
-        
+
         // 显示飘血文字
         if (amount > 0.01) {
-            const damageText = new DamageText(amount, this.x, this.y - 20, accuracyLabel);
+            const damageText = new DamageText(amount, this.x, this.y - 20, accuracyLabel, isCritical, isOneShot);
             Game.effectContainer.addChild(damageText);
         }
 

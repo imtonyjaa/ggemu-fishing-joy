@@ -26,13 +26,7 @@ class CaptureRules {
         return value;
     }
 
-    static getSingleCaptureChance({ bulletPower, fishCoin, accuracyBonusFactor = 0, captureAccumulationFactor = 0 }) {
-        const p = Number(bulletPower || 0);
-        const c = Number(fishCoin || 1);
-
-        if (p <= 0 || c <= 0) return 0;
-
-        // 1. 计算动态 RTP 系数 (小鱼爽快 110%，大鱼平稳 60%)
+    static getRtpMultiplier(c) {
         let rtpMultiplier = 1.1; 
         if (c > 5) {
             // 在 5-50 价值之间从 1.1 降至 0.6
@@ -41,12 +35,22 @@ class CaptureRules {
         } else if (c > 50) {
             rtpMultiplier = 0.6;
         }
+        return rtpMultiplier;
+    }
 
-        // 2. 计算基础概率 (目标返还率控制)
-        const baseProb = (p / c) * rtpMultiplier;
+    static getSingleCaptureChance({ bulletPower, fishCoin, accuracyBonusFactor = 0, captureAccumulationFactor = 0 }) {
+        const p = Number(bulletPower || 0);
+        const c = Number(fishCoin || 1);
+
+        if (p <= 0 || c <= 0) return 0;
+
+        // 1. 计算动态 RTP 系数
+        const rtpMultiplier = this.getRtpMultiplier(c);
         
+        // 2. 计算基础概率
+        const baseProb = (p / c) * rtpMultiplier;
+
         // 3. 最终概率 = 基础概率 * (1 + 准度加成因子 + 累积因子)
-        // 所有的加成现在都是相对于基础概率的比例，彻底解决大鱼无脑刷钱的问题
         let captureChance = baseProb * (1 + accuracyBonusFactor + captureAccumulationFactor);
 
         // 限制范围在 [0, highPowerCap]
