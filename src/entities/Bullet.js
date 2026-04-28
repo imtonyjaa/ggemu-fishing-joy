@@ -97,6 +97,7 @@ class Bullet extends PIXI.Sprite {
         if (affectedFishes.length === 0) return;
 
         let highestHitLevel = 0;
+        let killCount = 0;
 
         for (let f of affectedFishes) {
             // 每次命中增加累积值
@@ -152,6 +153,7 @@ class Bullet extends PIXI.Sprite {
 
             // 3. 检查死亡
             if (f.hp <= 0) {
+                killCount++;
                 f.capture();
                 Game.player.addCoin(f.type.coin);
                 const coinText = new CoinText(f.type.coin, Game.width / 2 - 340, Game.height - 40);
@@ -167,6 +169,11 @@ class Bullet extends PIXI.Sprite {
             AudioManager.playCritical();
         } else {
             AudioManager.playWeb();
+        }
+
+        // 播放多杀音效 (Double Kill, Triple Kill 等)
+        if (killCount >= 2) {
+            AudioManager.playMultiKill(killCount);
         }
     }
 }

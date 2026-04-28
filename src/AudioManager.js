@@ -88,6 +88,19 @@ const AudioManager = {
         }).connect(this.outputNode);
         this.powerSynth.volume.value = -12;
 
+        this.multiKillPlayers = {};
+        for (let i = 2; i <= 5; i++) {
+            this.multiKillPlayers[i] = new Tone.Player({
+                url: `./audios/${i}_kill.mp3`,
+                volume: 0
+            }).connect(this.outputNode);
+        }
+
+        this.oneShotPlayer = new Tone.Player({
+            url: `./audios/oneshot.mp3`,
+            volume: 0
+        }).connect(this.outputNode);
+
         this.initialized = true;
     },
 
@@ -161,8 +174,20 @@ const AudioManager = {
 
     playOneShot: function() {
         if(!this.initialized) this.init();
-        var now = Tone.now();
-        this.powerSynth.triggerAttackRelease(["A2", "A3", "C4", "E4", "A4"], "1m", now);
+        if (this.oneShotPlayer && this.oneShotPlayer.loaded) {
+            this.oneShotPlayer.stop();
+            this.oneShotPlayer.start();
+        }
+    },
+
+    playMultiKill: function(count) {
+        if(!this.initialized) this.init();
+        var c = Math.min(Math.max(count, 2), 5);
+        if (this.multiKillPlayers[c] && this.multiKillPlayers[c].loaded) {
+            // Stop if already playing to restart immediately
+            this.multiKillPlayers[c].stop();
+            this.multiKillPlayers[c].start();
+        }
     },
 
     startAmbient: function() {
