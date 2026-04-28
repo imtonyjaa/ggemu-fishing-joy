@@ -141,9 +141,7 @@ class Player {
             return true;
         }
 
-        if (this.getDisplayedCoins() < amount) {
-            return false;
-        }
+        const isAffordable = this.getDisplayedCoins() >= amount;
 
         this.pendingBagSpend += amount;
         this.renderCoins();
@@ -157,7 +155,7 @@ class Player {
                 this.renderCoins();
             });
 
-        return true;
+        return isAffordable;
     }
 
     addCoin(amount) {
