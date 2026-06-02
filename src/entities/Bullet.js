@@ -98,60 +98,34 @@ class Bullet extends PIXI.Sprite {
 
         let highestHitLevel = 0;
         let killCount = 0;
+        const playerCoins = Game.player && typeof Game.player.getDisplayedCoins === 'function'
+            ? Game.player.getDisplayedCoins()
+            : null;
 
         for (let f of affectedFishes) {
-            // 每次命中增加累积值
+            // Increase capture accumulation on every hit.
             f.increaseAccumulation();
 
-            // 1. 基础伤害计算
-            let accMult = 1.0;
-            if (this.accuracyLabel === "Great") accMult = 2.0;
-            else if (this.accuracyLabel === "Good") accMult = 1.0;
-            else accMult = 0.5;
+            const hitOutcome = CaptureRules.getHitOutcome({
+                bulletPower: this.power,
+                fishCoin: f.type.coin,
+                fishHp: f.hp,
+                fishMaxHp: f.maxHp,
+                accuracyLabel: this.accuracyLabel,
+                accuracyBonusFactor: this.accuracyBonus,
+                captureAccumulationFactor: f.captureAccumulationFactor || 0,
+                playerCoins
+            });
 
-            let damage = this.power * accMult;
-            let isMegaCritical = false;
-            let isOneShot = false;
-
-            // 2. 大暴击 (Mega Critical) 判定
-            // 只有 Great 和 Good 有资格触发
-            if (this.accuracyLabel === "Great" || this.accuracyLabel === "Good") {
-                const prob = CaptureRules.getSingleCaptureChance({
-                    bulletPower: this.power,
-                    fishCoin: f.type.coin,
-                    accuracyBonusFactor: this.accuracyBonus,
-                    captureAccumulationFactor: f.captureAccumulationFactor || 0
-                });
-
-                // 如果是 Good，触发几率大幅衰减
-                const finalProb = (this.accuracyLabel === "Great") ? prob : prob * 0.2;
-
-                if (CaptureRules.naturalRandom() < finalProb) {
-                    isMegaCritical = true;
-                    
-                    // 额外判定：在大暴击中，有 5% 的概率进化为“一击必杀 (ONE SHOT)”
-                    if (Math.random() < 0.05) {
-                        damage = f.hp;
-                        // 标记为特型暴击，用于显示不同的文字
-                        isOneShot = true;
-                    } else {
-                        // 标准大暴击：确保至少是普通伤害的 10 倍，或者是总血量的 40%~80%
-                        const baseMegaDamage = f.maxHp * (0.4 + Math.random() * 0.4);
-                        damage = Math.max(damage * 10, baseMegaDamage);
-                    }
-                }
-            }
-
-            // 执行伤害 (如果是 OneShot，显示特殊文字)
-            f.takeDamage(damage, this.accuracyLabel, isMegaCritical, isOneShot);
+            f.takeDamage(hitOutcome.damage, this.accuracyLabel, hitOutcome.isMegaCritical, hitOutcome.isOneShot);
 
             let hitLevel = 0;
             if (this.accuracyLabel === "Great") hitLevel = 1;
-            if (isMegaCritical) hitLevel = 2;
-            if (isOneShot) hitLevel = 3;
+            if (hitOutcome.isMegaCritical) hitLevel = 2;
+            if (hitOutcome.isOneShot) hitLevel = 3;
             if (hitLevel > highestHitLevel) highestHitLevel = hitLevel;
 
-            // 3. 检查死亡
+            // Capture fish after HP reaches zero.
             if (f.hp <= 0) {
                 killCount++;
                 f.capture();

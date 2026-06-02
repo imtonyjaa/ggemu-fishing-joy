@@ -51,8 +51,6 @@ class Fish extends PIXI.Container {
         this.hp = this.maxHp;
         this.hpBarVisibleTimer = 0;
 
-        this.setupHpBar();
-
         const swimFrames = [];
         for (let i = 0; i < this.type.frames; i++) {
             swimFrames.push(ResourceManager.getTexture(this.type.id, [0, i * this.type.height, this.type.width, this.type.height]));
