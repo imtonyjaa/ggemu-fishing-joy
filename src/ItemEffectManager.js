@@ -20,6 +20,18 @@ class ItemEffectManager {
             const duration = sourceFish.type.effectDuration || 10;
             game.player.startFreeFire(duration);
             game.effectContainer.addChild(new ItemCountdownEffect(sourceFish, duration, true));
+        },
+
+        perfectAim(game, sourceFish) {
+            const duration = sourceFish.type.effectDuration || 10;
+            game.player.startPerfectAim(duration);
+            game.effectContainer.addChild(new ItemCountdownEffect(sourceFish, duration, true));
+        },
+
+        magnet(game, sourceFish) {
+            const duration = sourceFish.type.effectDuration || 10;
+            game.startFishMagnet(sourceFish, duration);
+            game.effectContainer.addChild(new ItemCountdownEffect(sourceFish, duration, true));
         }
     };
 

@@ -7,6 +7,7 @@ class AccuracyBar extends PIXI.Container {
         this.indicatorPos = 0.5; // 0 to 1
         this.indicatorSpeed = 0.01;
         this.indicatorDirection = 1;
+        this.isPerfectAim = false;
 
         this.feedbackContainer = new PIXI.Container();
         this.addChild(this.feedbackContainer);
@@ -33,6 +34,11 @@ class AccuracyBar extends PIXI.Container {
         this.updateVisuals();
     }
 
+    setPerfectAim(active) {
+        this.isPerfectAim = Boolean(active);
+        this.updateVisuals();
+    }
+
     getGreenWidth() {
         // Great 区域：1号炮（0.2），7号炮（0.06）
         const maxWidth = 0.2;
@@ -56,14 +62,14 @@ class AccuracyBar extends PIXI.Container {
         this.bg.fill({ color: 0xFFD700, alpha: 0 });
 
         // Yellow target area (Good)
-        const goodWidthRatio = this.getGoodWidth();
+        const goodWidthRatio = this.isPerfectAim ? 1 : this.getGoodWidth();
         const yw = this.barWidth * goodWidthRatio;
         this.yellowArea.clear();
         this.yellowArea.rect(-yw / 2, -this.barHeight / 2, yw, this.barHeight, 2);
         this.yellowArea.fill({ color: 0x00ff00, alpha: 1 }); // Yellow
 
         // Green target area (Great)
-        const greenWidthRatio = this.getGreenWidth();
+        const greenWidthRatio = this.isPerfectAim ? 1 : this.getGreenWidth();
         const gw = this.barWidth * greenWidthRatio;
         this.greenArea.clear();
         this.greenArea.rect(-gw / 2, -this.barHeight / 2, gw, this.barHeight, 2);
@@ -131,6 +137,10 @@ class AccuracyBar extends PIXI.Container {
     }
 
     getAccuracy() {
+        if (this.isPerfectAim) {
+            return { label: "Great", bonus: 0.25 };
+        }
+
         const center = 0.5;
         const dist = Math.abs(this.indicatorPos - center);
 

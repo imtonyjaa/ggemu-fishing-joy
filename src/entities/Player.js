@@ -6,6 +6,7 @@ class Player {
         this.pendingBagReward = 0;
         this.bullets = [];
         this.freeFireTimer = 0;
+        this.perfectAimTimer = 0;
 
         this.cannon = new Cannon();
         this.cannon.x = Game.width / 2;
@@ -151,6 +152,20 @@ class Player {
         this.freeFireTimer = Math.max(0, this.freeFireTimer - delta);
     }
 
+    startPerfectAim(seconds) {
+        this.perfectAimTimer = Math.max(this.perfectAimTimer, seconds * 60);
+        this.accuracyBar.setPerfectAim(true);
+    }
+
+    updatePerfectAim(delta) {
+        if (this.perfectAimTimer <= 0) return;
+
+        this.perfectAimTimer = Math.max(0, this.perfectAimTimer - delta);
+        if (this.perfectAimTimer === 0) {
+            this.accuracyBar.setPerfectAim(false);
+        }
+    }
+
     consumeCoins(amount) {
         if (!window.GgemuBridge || !GgemuBridge.isBagEnabled()) {
             if (this.localCoins < amount) {
@@ -207,6 +222,7 @@ class Player {
 
     updateBullets(delta) {
         this.updateFreeFire(delta);
+        this.updatePerfectAim(delta);
 
         // 更新准度条
         this.accuracyBar.update(delta);

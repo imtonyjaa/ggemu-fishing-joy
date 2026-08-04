@@ -22,6 +22,8 @@ const Game = {
     schoolSpawnMode: 'normal',
     isLiveMode: false,
     fishFreezeTimer: 0,
+    fishMagnetTimer: 0,
+    fishMagnetSource: null,
     screenShakeTimer: 0,
     screenShakeDuration: 0,
     screenShakeIntensity: 0,
@@ -181,6 +183,7 @@ const Game = {
         this.updateScreenShake(delta);
 
         const fishAreFrozen = this.updateFishFreeze(delta);
+        const fishMagnetSource = this.updateFishMagnet(delta);
 
         if (!fishAreFrozen) {
             this.updateSpawnSystem(delta);
@@ -188,7 +191,7 @@ const Game = {
 
         for (let i = this.fishContainer.children.length - 1; i >= 0; i--) {
             const fish = this.fishContainer.children[i];
-            fish.update(delta, fishAreFrozen);
+            fish.update(delta, fishAreFrozen, fishMagnetSource);
             if (fish.isDead) {
                 this.fishContainer.removeChild(fish);
                 fish.destroy();
@@ -219,6 +222,22 @@ const Game = {
 
         this.fishFreezeTimer = Math.max(0, this.fishFreezeTimer - delta);
         return true;
+    },
+
+    startFishMagnet(sourceFish, seconds) {
+        this.fishMagnetSource = sourceFish;
+        this.fishMagnetTimer = Math.max(this.fishMagnetTimer, seconds * 60);
+    },
+
+    updateFishMagnet(delta) {
+        if (this.fishMagnetTimer <= 0 || !this.fishMagnetSource) {
+            this.fishMagnetSource = null;
+            return null;
+        }
+
+        const sourceFish = this.fishMagnetSource;
+        this.fishMagnetTimer = Math.max(0, this.fishMagnetTimer - delta);
+        return sourceFish;
     },
 
     startScreenShake(duration, intensity) {
@@ -385,7 +404,9 @@ const Game = {
             { typeIndex: 12, weight: hasShark ? 0 : 2 },
             { typeIndex: 13, weight: hasItem ? 0 : 3 },
             { typeIndex: 14, weight: hasItem ? 0 : 3 },
-            { typeIndex: 15, weight: hasItem ? 0 : 3 }
+            { typeIndex: 15, weight: hasItem ? 0 : 3 },
+            { typeIndex: 16, weight: hasItem ? 0 : 3 },
+            { typeIndex: 17, weight: hasItem ? 0 : 3 }
         ];
 
         let totalWeight = 0;

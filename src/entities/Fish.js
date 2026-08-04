@@ -14,7 +14,9 @@ class Fish extends PIXI.Container {
         12: { id: "shark2", coin: 200, rarity: 11, speed: 0.5, frames: 8, captureFrames: 4, width: 516, height: 273, regX: 350, regY: 130, collRect: [20, 50, 480, 170] },
         13: { emoji: "💣", coin: 0, captureValue: 60, hp: 80, itemEffect: "bomb", speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true },
         14: { emoji: "⏰", coin: 0, captureValue: 20, hp: 20, itemEffect: "clock", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true },
-        15: { emoji: "🆓", coin: 0, captureValue: 60, hp: 80, itemEffect: "free", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true }
+        15: { emoji: "🆓", coin: 0, captureValue: 60, hp: 80, itemEffect: "free", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true },
+        16: { emoji: "🎯", coin: 0, captureValue: 20, hp: 20, itemEffect: "perfectAim", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true },
+        17: { emoji: "🧲", coin: 0, captureValue: 20, hp: 20, itemEffect: "magnet", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true }
     };
 
     constructor(typeIndex, spawnOptions = {}) {
@@ -151,7 +153,7 @@ class Fish extends PIXI.Container {
             : (Math.random() - 0.5) * 0.001;
     }
 
-    update(delta, isFrozen = false) {
+    update(delta, isFrozen = false, attractionTarget = null) {
         this.setFrozen(isFrozen);
         if (this.captured) return;
 
@@ -160,9 +162,26 @@ class Fish extends PIXI.Container {
             return;
         }
 
-        const movementSpeed = this.type.speed * this.speedMultiplier;
+        let movementSpeed = this.type.speed * this.speedMultiplier;
 
         this.rotation += this.turnSpeed * delta;
+
+        if (attractionTarget && attractionTarget !== this) {
+            const dx = attractionTarget.x - this.x;
+            const dy = attractionTarget.y - this.y;
+            const distance = Math.hypot(dx, dy);
+
+            if (distance > 1) {
+                const targetRotation = Math.atan2(dy, dx);
+                const angleDifference = Math.atan2(
+                    Math.sin(targetRotation - this.rotation),
+                    Math.cos(targetRotation - this.rotation)
+                );
+                const maxTurn = 0.025 * delta;
+                this.rotation += Math.max(-maxTurn, Math.min(maxTurn, angleDifference));
+                movementSpeed *= Math.max(0.15, Math.min(1, distance / 100));
+            }
+        }
 
         this.x += Math.cos(this.rotation) * movementSpeed * delta;
         this.y += Math.sin(this.rotation) * movementSpeed * delta;
