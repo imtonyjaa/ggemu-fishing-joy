@@ -290,7 +290,7 @@ const Game = {
         let defeatedCount = 0;
 
         for (const fish of fishes) {
-            if (fish === sourceFish) continue;
+            if (fish === sourceFish || !fish.hasEnteredScreen) continue;
             if (this.defeatFish(fish)) defeatedCount++;
         }
 
