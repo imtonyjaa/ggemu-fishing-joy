@@ -16,7 +16,7 @@ class Fish extends PIXI.Container {
         14: { emoji: "⏰", coin: 0, captureValue: 20, hp: 20, itemEffect: "clock", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true },
         15: { emoji: "🆓", coin: 0, captureValue: 60, hp: 80, itemEffect: "free", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true },
         16: { emoji: "🎯", coin: 0, captureValue: 20, hp: 20, itemEffect: "perfectAim", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true },
-        17: { emoji: "🌪️", coin: 0, captureValue: 20, hp: 20, itemEffect: "vortex", effectDuration: 5, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true }
+        17: { emoji: "🌪️", coin: 0, captureValue: 20, hp: 20, itemEffect: "vortex", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true }
     };
 
     constructor(typeIndex, spawnOptions = {}) {
@@ -167,20 +167,7 @@ class Fish extends PIXI.Container {
         this.rotation += this.turnSpeed * delta;
 
         if (attractionTarget && attractionTarget !== this) {
-            const dx = attractionTarget.x - this.x;
-            const dy = attractionTarget.y - this.y;
-            const distance = Math.hypot(dx, dy);
-
-            if (distance > 1) {
-                const targetRotation = Math.atan2(dy, dx);
-                const angleDifference = Math.atan2(
-                    Math.sin(targetRotation - this.rotation),
-                    Math.cos(targetRotation - this.rotation)
-                );
-                const maxTurn = 0.025 * delta;
-                this.rotation += Math.max(-maxTurn, Math.min(maxTurn, angleDifference));
-                movementSpeed *= Math.max(0.15, Math.min(1, distance / 100));
-            }
+            movementSpeed *= this.steerIntoVortex(attractionTarget, delta);
         }
 
         this.x += Math.cos(this.rotation) * movementSpeed * delta;
@@ -218,6 +205,35 @@ class Fish extends PIXI.Container {
                 this.isDead = true;
             }
         }
+    }
+
+    steerIntoVortex(target, delta) {
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance <= 1) return 0.85;
+
+        if (this.vortexTarget !== target) {
+            const fishSize = Math.max(this.type.width, this.type.height);
+            this.vortexOrbitRadius = 75 + Math.min(95, fishSize * 0.18) + Math.random() * 55;
+            this.vortexTarget = target;
+        }
+
+        const inwardX = dx / distance;
+        const inwardY = dy / distance;
+        const radialError = (distance - this.vortexOrbitRadius) / this.vortexOrbitRadius;
+        const radialStrength = Math.max(-0.35, Math.min(0.6, radialError * 0.45));
+        const directionX = -inwardY + inwardX * radialStrength;
+        const directionY = inwardX + inwardY * radialStrength;
+        const targetRotation = Math.atan2(directionY, directionX);
+        const angleDifference = Math.atan2(
+            Math.sin(targetRotation - this.rotation),
+            Math.cos(targetRotation - this.rotation)
+        );
+        const maxTurn = 0.04 * delta;
+        this.rotation += Math.max(-maxTurn, Math.min(maxTurn, angleDifference));
+
+        return 0.85 + Math.min(0.15, distance / (this.vortexOrbitRadius * 10));
     }
 
     setFrozen(isFrozen) {
