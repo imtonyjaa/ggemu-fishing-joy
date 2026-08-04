@@ -79,6 +79,41 @@ const AudioManager = {
         }).connect(this.outputNode);
         this.bubbleSynth.volume.value = -25;
 
+        this.clockTickSynth = new Tone.Synth({
+            oscillator: { type: "square" },
+            envelope: {
+                attack: 0.001,
+                decay: 0.04,
+                sustain: 0,
+                release: 0.04
+            }
+        }).connect(this.outputNode);
+        this.clockTickSynth.volume.value = -20;
+
+        this.bombNoiseSynth = new Tone.NoiseSynth({
+            noise: { type: "brown" },
+            envelope: {
+                attack: 0.001,
+                decay: 0.9,
+                sustain: 0,
+                release: 0.6
+            }
+        }).connect(this.outputNode);
+        this.bombNoiseSynth.volume.value = -7;
+
+        this.bombImpactSynth = new Tone.MembraneSynth({
+            pitchDecay: 0.08,
+            octaves: 8,
+            oscillator: { type: "sine" },
+            envelope: {
+                attack: 0.001,
+                decay: 0.8,
+                sustain: 0,
+                release: 0.6
+            }
+        }).connect(this.outputNode);
+        this.bombImpactSynth.volume.value = -5;
+
         // 为暴击和强力击打准备的合成器
         this.powerSynth = new Tone.PolySynth(Tone.FMSynth, {
             oscillator: { type: "square" },
@@ -158,6 +193,18 @@ const AudioManager = {
         if (t > now + 0.2) return;
         this.webSynth.triggerAttackRelease("16n", t);
         this._lastWebTime = t + 0.05;
+    },
+
+    playClockTick: function() {
+        if(!this.initialized) this.init();
+        this.clockTickSynth.triggerAttackRelease("G6", "32n", Tone.now());
+    },
+
+    playBombExplosion: function() {
+        if(!this.initialized) this.init();
+        var now = Tone.now();
+        this.bombNoiseSynth.triggerAttackRelease("2n", now);
+        this.bombImpactSynth.triggerAttackRelease("C1", "2n", now);
     },
 
     playCritical: function() {

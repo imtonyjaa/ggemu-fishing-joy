@@ -11,7 +11,10 @@ class Fish extends PIXI.Container {
         9: { id: "fish9", coin: 50, rarity: 9, speed: 0.8, frames: 8, captureFrames: 4, width: 166, height: 183, regX: 120, regY: 70, collRect: [60, 10, 100, 130] },
         10: { id: "fish10", coin: 60, rarity: 10, speed: 0.8, frames: 6, captureFrames: 4, width: 178, height: 187, regX: 100, regY: 80, collRect: [20, 30, 150, 90] },
         11: { id: "shark1", coin: 100, rarity: 11, speed: 0.6, frames: 8, captureFrames: 4, width: 509, height: 270, regX: 350, regY: 130, collRect: [20, 50, 480, 170] },
-        12: { id: "shark2", coin: 200, rarity: 11, speed: 0.5, frames: 8, captureFrames: 4, width: 516, height: 273, regX: 350, regY: 130, collRect: [20, 50, 480, 170] }
+        12: { id: "shark2", coin: 200, rarity: 11, speed: 0.5, frames: 8, captureFrames: 4, width: 516, height: 273, regX: 350, regY: 130, collRect: [20, 50, 480, 170] },
+        13: { emoji: "💣", coin: 0, captureValue: 60, hp: 80, itemEffect: "bomb", speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true },
+        14: { emoji: "⏰", coin: 0, captureValue: 20, hp: 20, itemEffect: "clock", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true },
+        15: { emoji: "🆓", coin: 0, captureValue: 60, hp: 80, itemEffect: "free", effectDuration: 10, speed: 1.0, frames: 1, captureFrames: 0, width: 80, height: 80, regX: 40, regY: 40, collRect: [6, 6, 68, 68], keepUpright: true }
     };
 
     constructor(typeIndex, spawnOptions = {}) {
@@ -33,39 +36,58 @@ class Fish extends PIXI.Container {
 
         // 血条系统 (保底系统)
         // 根据 RTP 系数反算 HP，保证数值平衡 (HP = 价值 / RTP)
-        const rtp = CaptureRules.getRtpMultiplier(this.type.coin);
+        const captureValue = this.type.captureValue || this.type.coin;
+        const rtp = CaptureRules.getRtpMultiplier(captureValue);
         
         // 动态护甲：小鱼脆皮（保证秒杀爽感），大鱼皮厚（防纯平砍刷钱）
         let armorMultiplier = 1.0;
-        if (this.type.coin <= 5) {
+        if (captureValue <= 5) {
             armorMultiplier = 0.9; // 2金币鱼: HP 1.81 * 0.9 = 1.63 < 2.0 (Great 必秒)
-        } else if (this.type.coin > 50) {
+        } else if (captureValue > 50) {
             armorMultiplier = 1.3; // 鲨鱼增加装甲
         } else {
             // 中型鱼平滑过渡
-            const t = (this.type.coin - 5) / 45;
+            const t = (captureValue - 5) / 45;
             armorMultiplier = 0.9 + t * (1.3 - 0.9);
         }
 
-        this.maxHp = (this.type.coin / rtp) * armorMultiplier;
+        this.maxHp = this.type.hp || (captureValue / rtp) * armorMultiplier;
         this.hp = this.maxHp;
         this.hpBarVisibleTimer = 0;
 
-        const swimFrames = [];
-        for (let i = 0; i < this.type.frames; i++) {
-            swimFrames.push(ResourceManager.getTexture(this.type.id, [0, i * this.type.height, this.type.width, this.type.height]));
-        }
-
-        this.sprite = new PIXI.AnimatedSprite(swimFrames);
-        this.sprite.animationSpeed = 0.1 * this.animationSpeedMultiplier;
-        this.sprite.play();
+        this.sprite = this.createSprite();
         this.sprite.anchor.set(this.type.regX / this.type.width, this.type.regY / this.type.height);
+
+        this.baseSpriteScaleX = Math.abs(this.sprite.scale.x);
+        this.baseSpriteScaleY = Math.abs(this.sprite.scale.y);
 
         this.setupHpBar();
 
         this.addChild(this.sprite);
 
         this.initPosition(spawnOptions);
+    }
+
+    createSprite() {
+        if (this.type.emoji) {
+            return new PIXI.Text({
+                text: this.type.emoji,
+                style: {
+                    fontFamily: "Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif",
+                    fontSize: 64
+                }
+            });
+        }
+
+        const frames = [];
+        for (let i = 0; i < this.type.frames; i++) {
+            frames.push(ResourceManager.getTexture(this.type.id, [0, i * this.type.height, this.type.width, this.type.height]));
+        }
+
+        const sprite = new PIXI.AnimatedSprite(frames);
+        sprite.animationSpeed = 0.1 * this.animationSpeedMultiplier;
+        sprite.play();
+        return sprite;
     }
 
     setupHpBar() {
@@ -129,8 +151,14 @@ class Fish extends PIXI.Container {
             : (Math.random() - 0.5) * 0.001;
     }
 
-    update(delta) {
+    update(delta, isFrozen = false) {
+        this.setFrozen(isFrozen);
         if (this.captured) return;
+
+        if (isFrozen) {
+            this.updateHpBar(delta);
+            return;
+        }
 
         const movementSpeed = this.type.speed * this.speedMultiplier;
 
@@ -142,27 +170,18 @@ class Fish extends PIXI.Container {
         // 保持鱼永远背部朝上 (右侧游动 cos > 0, 左侧游动 cos < 0)
         // 向左游时垂直翻转精灵，使其看起来是正的
         const isHeadingLeft = Math.cos(this.rotation) < 0;
-        this.sprite.scale.y = isHeadingLeft ? -1 : 1;
+        this.sprite.scale.x = this.baseSpriteScaleX;
+        this.sprite.scale.y = this.type.keepUpright || !isHeadingLeft
+            ? this.baseSpriteScaleY
+            : -this.baseSpriteScaleY;
+        this.sprite.rotation = this.type.keepUpright ? -this.rotation : 0;
 
         // 处理特殊的初始旋转偏移
         if (this.type.rotationOffset) {
             this.sprite.rotation = isHeadingLeft ? -this.type.rotationOffset : this.type.rotationOffset;
         }
 
-        if (this.hpBarVisibleTimer > 0) {
-            this.hpBarVisibleTimer -= delta;
-            this.hpBarContainer.alpha = Math.min(1, this.hpBarVisibleTimer / 20);
-
-            // 保持血条在鱼的上方，且不受鱼自身旋转和缩放影响
-            this.hpBarContainer.x = this.x;
-            this.hpBarContainer.y = this.y - 35;
-            this.hpBarContainer.rotation = 0;
-            this.hpBarContainer.scale.set(1);
-
-            if (this.hpBarVisibleTimer <= 0) {
-                this.hpBarContainer.visible = false;
-            }
-        }
+        this.updateHpBar(delta);
 
         const leftBound = -200;
         const rightBound = Game.width + 200;
@@ -182,6 +201,32 @@ class Fish extends PIXI.Container {
         }
     }
 
+    setFrozen(isFrozen) {
+        if (isFrozen) {
+            if (this.sprite.playing && typeof this.sprite.stop === 'function') this.sprite.stop();
+            return;
+        }
+
+        if (typeof this.sprite.play === 'function' && !this.sprite.playing && !this.isDead) {
+            this.sprite.play();
+        }
+    }
+
+    updateHpBar(delta) {
+        if (this.hpBarVisibleTimer <= 0) return;
+
+        this.hpBarVisibleTimer -= delta;
+        this.hpBarContainer.alpha = Math.min(1, this.hpBarVisibleTimer / 20);
+        this.hpBarContainer.x = this.x;
+        this.hpBarContainer.y = this.y - this.type.height * 0.55;
+        this.hpBarContainer.rotation = 0;
+        this.hpBarContainer.scale.set(1);
+
+        if (this.hpBarVisibleTimer <= 0) {
+            this.hpBarContainer.visible = false;
+        }
+    }
+
     increaseAccumulation() {
         // 每次命中增加 0.5% 的基础概率加成，上限为 30%
         this.captureAccumulationFactor = Math.min(0.3, this.captureAccumulationFactor + 0.005);
@@ -197,8 +242,8 @@ class Fish extends PIXI.Container {
             Game.effectContainer.addChild(damageText);
         }
 
-        // 只有大鱼（价值 >= 10）显示血条，避免杂乱
-        if (this.type.coin >= 10) {
+        // Always show health for items and valuable fish.
+        if (this.type.itemEffect || this.type.coin >= 10) {
             this.hpBarContainer.visible = true;
             this.hpBarContainer.alpha = 1;
             this.hpBarVisibleTimer = 90; // 显示约 1.5 秒
@@ -218,7 +263,13 @@ class Fish extends PIXI.Container {
         }
 
         const captureFrames = [];
-        const captureCount = this.type.captureFrames || 4;
+        const captureCount = this.type.captureFrames ?? 4;
+
+        if (captureCount === 0) {
+            this.isDead = !this.type.effectDuration;
+            return;
+        }
+
         const startFrame = this.type.frames;
         for (let i = startFrame; i < startFrame + captureCount; i++) {
             captureFrames.push(ResourceManager.getTexture(this.type.id, [0, i * this.type.height, this.type.width, this.type.height]));

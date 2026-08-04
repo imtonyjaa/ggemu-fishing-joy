@@ -21,6 +21,10 @@ const Game = {
     openingSchoolPending: false,
     schoolSpawnMode: 'normal',
     isLiveMode: false,
+    fishFreezeTimer: 0,
+    screenShakeTimer: 0,
+    screenShakeDuration: 0,
+    screenShakeIntensity: 0,
 
     async init() {
         this.app = new PIXI.Application();
@@ -174,14 +178,20 @@ const Game = {
         const delta = ticker.deltaTime;
 
         WaterEffect.update(delta);
+        this.updateScreenShake(delta);
 
-        this.updateSpawnSystem(delta);
+        const fishAreFrozen = this.updateFishFreeze(delta);
+
+        if (!fishAreFrozen) {
+            this.updateSpawnSystem(delta);
+        }
 
         for (let i = this.fishContainer.children.length - 1; i >= 0; i--) {
             const fish = this.fishContainer.children[i];
-            fish.update(delta);
+            fish.update(delta, fishAreFrozen);
             if (fish.isDead) {
                 this.fishContainer.removeChild(fish);
+                fish.destroy();
             }
         }
 
@@ -198,6 +208,74 @@ const Game = {
         }
 
         this.player.updateBullets(delta);
+    },
+
+    freezeFish(seconds) {
+        this.fishFreezeTimer = Math.max(this.fishFreezeTimer, seconds * 60);
+    },
+
+    updateFishFreeze(delta) {
+        if (this.fishFreezeTimer <= 0) return false;
+
+        this.fishFreezeTimer = Math.max(0, this.fishFreezeTimer - delta);
+        return true;
+    },
+
+    startScreenShake(duration, intensity) {
+        this.screenShakeTimer = Math.max(this.screenShakeTimer, duration);
+        this.screenShakeDuration = Math.max(this.screenShakeDuration, duration);
+        this.screenShakeIntensity = Math.max(this.screenShakeIntensity, intensity);
+    },
+
+    updateScreenShake(delta) {
+        if (this.screenShakeTimer <= 0) {
+            this.gameContainer.position.set(0, 0);
+            return;
+        }
+
+        this.screenShakeTimer = Math.max(0, this.screenShakeTimer - delta);
+        const strength = this.screenShakeIntensity * (this.screenShakeTimer / this.screenShakeDuration);
+        this.gameContainer.position.set(
+            (Math.random() * 2 - 1) * strength,
+            (Math.random() * 2 - 1) * strength
+        );
+
+        if (this.screenShakeTimer === 0) {
+            this.gameContainer.position.set(0, 0);
+            this.screenShakeDuration = 0;
+            this.screenShakeIntensity = 0;
+        }
+    },
+
+    defeatFish(fish) {
+        if (!fish || fish.captured || fish.isDead) return false;
+
+        fish.capture();
+
+        if (fish.type.itemEffect) {
+            ItemEffectManager.activate(fish.type.itemEffect, this, fish);
+            return true;
+        }
+
+        if (fish.type.coin > 0) {
+            this.player.addCoin(fish.type.coin);
+            const coinText = new CoinText(fish.type.coin, this.width / 2 - 340, this.height - 40);
+            this.effectContainer.addChild(coinText);
+        }
+
+        return true;
+    },
+
+    defeatAllFish(sourceFish) {
+        const fishes = [...this.fishContainer.children];
+        let defeatedCount = 0;
+
+        for (const fish of fishes) {
+            if (fish === sourceFish) continue;
+            if (this.defeatFish(fish)) defeatedCount++;
+        }
+
+        return defeatedCount;
     },
 
     updateSpawnSystem(delta) {
@@ -290,6 +368,7 @@ const Game = {
     chooseFishTypeIndex() {
         // 确保屏幕上同时只会出现一条鲨鱼，包括正在播放捕获动画的鲨鱼
         const hasShark = this.fishContainer.children.some(f => !f.isDead && (f.typeIndex === 11 || f.typeIndex === 12));
+        const hasItem = this.fishContainer.children.some(f => !f.isDead && Boolean(f.type.itemEffect));
 
         const candidates = [
             { typeIndex: 1, weight: 65 },
@@ -303,7 +382,10 @@ const Game = {
             { typeIndex: 9, weight: 3 },
             { typeIndex: 10, weight: 2 },
             { typeIndex: 11, weight: hasShark ? 0 : 5 }, // 调整鲨鱼权重，增加出现频率
-            { typeIndex: 12, weight: hasShark ? 0 : 2 }
+            { typeIndex: 12, weight: hasShark ? 0 : 2 },
+            { typeIndex: 13, weight: hasItem ? 0 : 3 },
+            { typeIndex: 14, weight: hasItem ? 0 : 3 },
+            { typeIndex: 15, weight: hasItem ? 0 : 3 }
         ];
 
         let totalWeight = 0;

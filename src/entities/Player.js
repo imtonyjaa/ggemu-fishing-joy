@@ -5,6 +5,7 @@ class Player {
         this.pendingBagSpend = 0;
         this.pendingBagReward = 0;
         this.bullets = [];
+        this.freeFireTimer = 0;
 
         this.cannon = new Cannon();
         this.cannon.x = Game.width / 2;
@@ -25,8 +26,7 @@ class Player {
         this.minusBtn.anchor.set(0.5);
         this.minusBtn.on('pointerdown', (e) => {
             e.stopPropagation();
-            this.cannon.setPower(this.cannon.power - 1);
-            this.accuracyBar.setPower(this.cannon.power);
+            this.setCannonPower(this.cannon.power - 1);
             AudioManager.playUI();
         });
 
@@ -35,8 +35,7 @@ class Player {
         this.plusBtn.anchor.set(0.5);
         this.plusBtn.on('pointerdown', (e) => {
             e.stopPropagation();
-            this.cannon.setPower(this.cannon.power + 1);
-            this.accuracyBar.setPower(this.cannon.power);
+            this.setCannonPower(this.cannon.power + 1);
             AudioManager.playUI();
         });
 
@@ -107,7 +106,8 @@ class Player {
     }
 
     fire(targetGlobalPos) {
-        const canFire = this.consumeCoins(this.cannon.power);
+        const isFreeFire = this.isFreeFireActive();
+        const canFire = isFreeFire || this.consumeCoins(this.cannon.power);
 
         if (!canFire) return;
 
@@ -127,7 +127,28 @@ class Player {
         this.bullets.push(bullet);
         Game.app.stage.addChild(bullet);
 
-        Game.coinsSpentSinceLastSchool = (Game.coinsSpentSinceLastSchool || 0) + this.cannon.power;
+        if (!isFreeFire) {
+            Game.coinsSpentSinceLastSchool = (Game.coinsSpentSinceLastSchool || 0) + this.cannon.power;
+        }
+    }
+
+    setCannonPower(power) {
+        this.cannon.setPower(power);
+        this.accuracyBar.setPower(this.cannon.power);
+    }
+
+    isFreeFireActive() {
+        return this.freeFireTimer > 0;
+    }
+
+    startFreeFire(seconds) {
+        this.freeFireTimer = Math.max(this.freeFireTimer, seconds * 60);
+    }
+
+    updateFreeFire(delta) {
+        if (!this.isFreeFireActive()) return;
+
+        this.freeFireTimer = Math.max(0, this.freeFireTimer - delta);
     }
 
     consumeCoins(amount) {
@@ -185,6 +206,8 @@ class Player {
     }
 
     updateBullets(delta) {
+        this.updateFreeFire(delta);
+
         // 更新准度条
         this.accuracyBar.update(delta);
 

@@ -103,12 +103,14 @@ class Bullet extends PIXI.Sprite {
             : null;
 
         for (let f of affectedFishes) {
+            if (f.captured || f.isDead) continue;
+
             // Increase capture accumulation on every hit.
             f.increaseAccumulation();
 
             const hitOutcome = CaptureRules.getHitOutcome({
                 bulletPower: this.power,
-                fishCoin: f.type.coin,
+                fishCoin: f.type.captureValue || f.type.coin,
                 fishHp: f.hp,
                 fishMaxHp: f.maxHp,
                 accuracyLabel: this.accuracyLabel,
@@ -126,12 +128,8 @@ class Bullet extends PIXI.Sprite {
             if (hitLevel > highestHitLevel) highestHitLevel = hitLevel;
 
             // Capture fish after HP reaches zero.
-            if (f.hp <= 0) {
+            if (f.hp <= 0 && Game.defeatFish(f)) {
                 killCount++;
-                f.capture();
-                Game.player.addCoin(f.type.coin);
-                const coinText = new CoinText(f.type.coin, Game.width / 2 - 340, Game.height - 40);
-                Game.effectContainer.addChild(coinText);
             }
         }
 
