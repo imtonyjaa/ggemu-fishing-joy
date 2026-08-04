@@ -2,6 +2,7 @@ class Bullet extends PIXI.Sprite {
     static hitRadius = 40;
     static hitRadiusSquared = 1600;
     static defaultWebRadius = 54;
+    static secondaryDamageMultiplier = 0.5;
 
     static config = [
         { rect: [86, 0, 24, 26], regX: 12, regY: 13 },
@@ -107,6 +108,7 @@ class Bullet extends PIXI.Sprite {
 
             // Increase capture accumulation on every hit.
             f.increaseAccumulation();
+            const isPrimaryTarget = f === fish;
 
             const hitOutcome = CaptureRules.getHitOutcome({
                 bulletPower: this.power,
@@ -116,10 +118,17 @@ class Bullet extends PIXI.Sprite {
                 accuracyLabel: this.accuracyLabel,
                 accuracyBonusFactor: this.accuracyBonus,
                 captureAccumulationFactor: f.captureAccumulationFactor || 0,
-                playerCoins
+                playerCoins,
+                allowOneShot: isPrimaryTarget
             });
+            const damageMultiplier = isPrimaryTarget ? 1 : Bullet.secondaryDamageMultiplier;
 
-            f.takeDamage(hitOutcome.damage, this.accuracyLabel, hitOutcome.isMegaCritical, hitOutcome.isOneShot);
+            f.takeDamage(
+                hitOutcome.damage * damageMultiplier,
+                this.accuracyLabel,
+                hitOutcome.isMegaCritical,
+                hitOutcome.isOneShot
+            );
 
             let hitLevel = 0;
             if (this.accuracyLabel === "Great") hitLevel = 1;

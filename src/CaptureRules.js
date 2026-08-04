@@ -2,8 +2,8 @@ class CaptureRules {
     static highPowerCap = 0.9; // Cap for capture chance even with all bonuses, to keep some level of uncertainty.
     static lowCoinThreshold = 20; // Threshold for considering a player to be in "low coin" state, which can trigger certain bonuses or increased chances.
     static lowCoinAssistBonusFactor = 2.0; // Additional bonus factor applied to capture chance for low coin players, to help them recover. This is a multiplier on top of other bonuses, not a flat increase.
-    static oneShotChance = 0.05; // Base chance for a one-shot capture on a mega critical hit, before adjusting for player coins or other factors.
-    static lowCoinOneShotChance = 0.2; // Increased one-shot chance for low coin players, to give them a better chance at recovery. This is a flat chance that applies when the player is in low coin state, regardless of mega critical chance.
+    static oneShotChance = 0.15; // Base chance for a one-shot capture after a mega critical hit.
+    static lowCoinOneShotChance = 0.2; // Conditional one-shot chance after a mega critical hit for low coin players.
     static lowCoinRescueOneShotChance = { // Additional one-shot chance for low coin players based on accuracy, to provide a potential "rescue" capture even without a mega critical hit. This is separate from the mega critical one-shot chance and can trigger independently.
         Great: 0.03,
         Good: 0.01
@@ -58,11 +58,8 @@ class CaptureRules {
         return this.oneShotChance;
     }
 
-    static getOneShotChance(playerCoins, megaCriticalChance = 1) {
-        const chance = Number(megaCriticalChance);
-        if (!Number.isFinite(chance) || chance <= 0) return 0;
-
-        return Math.min(1, this.getFinalOneShotChance(playerCoins) / chance);
+    static getOneShotChance(playerCoins) {
+        return this.getFinalOneShotChance(playerCoins);
     }
 
     static getRescueOneShotChance(playerCoins, accuracyLabel) {
@@ -94,7 +91,7 @@ class CaptureRules {
         return Math.max(baseDamage * 10, baseMegaDamage);
     }
 
-    static getHitOutcome({ bulletPower, fishCoin, fishHp, fishMaxHp, accuracyLabel, accuracyBonusFactor = 0, captureAccumulationFactor = 0, playerCoins = null }) {
+    static getHitOutcome({ bulletPower, fishCoin, fishHp, fishMaxHp, accuracyLabel, accuracyBonusFactor = 0, captureAccumulationFactor = 0, playerCoins = null, allowOneShot = true }) {
         let damage = bulletPower * this.getAccuracyDamageMultiplier(accuracyLabel);
         const megaCriticalChance = this.getMegaCriticalChance({
             bulletPower,
@@ -111,13 +108,13 @@ class CaptureRules {
         if (megaCriticalChance > 0 && this.naturalRandom() < megaCriticalChance) {
             isMegaCritical = true;
 
-            if (this.naturalRandom() < this.getOneShotChance(playerCoins, megaCriticalChance)) {
+            if (allowOneShot && this.naturalRandom() < this.getOneShotChance(playerCoins)) {
                 damage = fishHp;
                 isOneShot = true;
             } else {
                 damage = this.getMegaCriticalDamage(damage, fishMaxHp);
             }
-        } else {
+        } else if (allowOneShot) {
             const rescueOneShotChance = this.getRescueOneShotChance(playerCoins, accuracyLabel);
             if (rescueOneShotChance > 0 && this.naturalRandom() < rescueOneShotChance) {
                 damage = fishHp;
