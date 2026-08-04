@@ -402,11 +402,11 @@ const Game = {
             { typeIndex: 10, weight: 2 },
             { typeIndex: 11, weight: hasShark ? 0 : 5 }, // 调整鲨鱼权重，增加出现频率
             { typeIndex: 12, weight: hasShark ? 0 : 2 },
-            { typeIndex: 13, weight: hasItem ? 0 : 2 },
-            { typeIndex: 14, weight: hasItem ? 0 : 2 },
-            { typeIndex: 15, weight: hasItem ? 0 : 2 },
-            { typeIndex: 16, weight: hasItem ? 0 : 2 },
-            { typeIndex: 17, weight: hasItem ? 0 : 2 }
+            { typeIndex: 13, weight: hasItem ? 0 : 1 },// 💣
+            { typeIndex: 14, weight: hasItem ? 0 : 2 },// ⏰
+            { typeIndex: 15, weight: hasItem ? 0 : 1 },// 🆓
+            { typeIndex: 16, weight: hasItem ? 0 : 2 },// 🎯
+            { typeIndex: 17, weight: hasItem ? 0 : 2 } // 🌪️
         ];
 
         let totalWeight = 0;
