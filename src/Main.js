@@ -22,8 +22,8 @@ const Game = {
     schoolSpawnMode: 'normal',
     isLiveMode: false,
     fishFreezeTimer: 0,
-    fishMagnetTimer: 0,
-    fishMagnetSource: null,
+    fishVortexTimer: 0,
+    fishVortexSource: null,
     screenShakeTimer: 0,
     screenShakeDuration: 0,
     screenShakeIntensity: 0,
@@ -183,7 +183,7 @@ const Game = {
         this.updateScreenShake(delta);
 
         const fishAreFrozen = this.updateFishFreeze(delta);
-        const fishMagnetSource = this.updateFishMagnet(delta);
+        const fishVortexSource = this.updateFishVortex(delta);
 
         if (!fishAreFrozen) {
             this.updateSpawnSystem(delta);
@@ -191,7 +191,7 @@ const Game = {
 
         for (let i = this.fishContainer.children.length - 1; i >= 0; i--) {
             const fish = this.fishContainer.children[i];
-            fish.update(delta, fishAreFrozen, fishMagnetSource);
+            fish.update(delta, fishAreFrozen, fishVortexSource);
             if (fish.isDead) {
                 this.fishContainer.removeChild(fish);
                 fish.destroy();
@@ -224,19 +224,19 @@ const Game = {
         return true;
     },
 
-    startFishMagnet(sourceFish, seconds) {
-        this.fishMagnetSource = sourceFish;
-        this.fishMagnetTimer = Math.max(this.fishMagnetTimer, seconds * 60);
+    startFishVortex(sourceFish, seconds) {
+        this.fishVortexSource = sourceFish;
+        this.fishVortexTimer = Math.max(this.fishVortexTimer, seconds * 60);
     },
 
-    updateFishMagnet(delta) {
-        if (this.fishMagnetTimer <= 0 || !this.fishMagnetSource) {
-            this.fishMagnetSource = null;
+    updateFishVortex(delta) {
+        if (this.fishVortexTimer <= 0 || !this.fishVortexSource) {
+            this.fishVortexSource = null;
             return null;
         }
 
-        const sourceFish = this.fishMagnetSource;
-        this.fishMagnetTimer = Math.max(0, this.fishMagnetTimer - delta);
+        const sourceFish = this.fishVortexSource;
+        this.fishVortexTimer = Math.max(0, this.fishVortexTimer - delta);
         return sourceFish;
     },
 
@@ -402,11 +402,11 @@ const Game = {
             { typeIndex: 10, weight: 2 },
             { typeIndex: 11, weight: hasShark ? 0 : 5 }, // 调整鲨鱼权重，增加出现频率
             { typeIndex: 12, weight: hasShark ? 0 : 2 },
-            { typeIndex: 13, weight: hasItem ? 0 : 3 },
-            { typeIndex: 14, weight: hasItem ? 0 : 3 },
-            { typeIndex: 15, weight: hasItem ? 0 : 3 },
-            { typeIndex: 16, weight: hasItem ? 0 : 3 },
-            { typeIndex: 17, weight: hasItem ? 0 : 3 }
+            { typeIndex: 13, weight: hasItem ? 0 : 2 },
+            { typeIndex: 14, weight: hasItem ? 0 : 2 },
+            { typeIndex: 15, weight: hasItem ? 0 : 2 },
+            { typeIndex: 16, weight: hasItem ? 0 : 2 },
+            { typeIndex: 17, weight: hasItem ? 0 : 2 }
         ];
 
         let totalWeight = 0;

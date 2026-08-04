@@ -28,9 +28,10 @@ class ItemEffectManager {
             game.effectContainer.addChild(new ItemCountdownEffect(sourceFish, duration, true));
         },
 
-        magnet(game, sourceFish) {
+        vortex(game, sourceFish) {
             const duration = sourceFish.type.effectDuration || 10;
-            game.startFishMagnet(sourceFish, duration);
+            game.startFishVortex(sourceFish, duration);
+            WaterEffect.startVortex(game.gameContainer, sourceFish, duration);
             game.effectContainer.addChild(new ItemCountdownEffect(sourceFish, duration, true));
         }
     };
